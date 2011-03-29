@@ -1,0 +1,43 @@
+namespace :dontsay do
+  task :mime do
+    loop do
+      puts "rake task #{$$} doesn't say"
+      sleep rand * 10
+      trap("TERM") { puts "stayin_alive" }
+    end
+  end
+end
+
+task :saydog do
+  loop do
+    puts "rake task #{$$} says \"dog\""
+    sleep rand * 10
+    if (rand * 10) < 1 # 10% chance
+      puts "rake task #{$$} dying"
+      exit
+    end
+    $stdout.flush
+  end
+end
+
+task :saycat do
+  loop do
+    puts "rake task #{$$} says \"cat\""
+    sleep rand * 10
+    if (rand * 10) < 1 # 10% chance
+      puts "rake task #{$$} dying"
+      exit
+    end
+  end
+end
+
+task :saypig do
+  loop do
+    puts "rake task #{$$} says \"pig\""
+    sleep rand * 10
+    if (rand * 10) < 1 # 10% chance
+      puts "rake task #{$$} dying"
+      exit
+    end
+  end
+end

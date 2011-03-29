@@ -1,0 +1,14 @@
+#!/usr/bin/ruby
+# Rakerunner keeps rakes running
+# Usage: rakerunner start | stop | restart | stoprake <rakename>
+require 'rubygems'
+require 'rakerunner' 
+include RakeRunnerUtil
+
+conf_file = RakeRunnerUtil.find_conf
+if conf_file
+  RakeRunner.new(conf_file).run
+else
+  $stderr.write("Error: No rakerunner.conf found.\nTry setting RAKERUNNER_CONF in the environment or creating a rakerunner.conf file in the same directory as this script or in /etc.\n")
+  exit 1
+end

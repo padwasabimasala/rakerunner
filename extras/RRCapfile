@@ -1,0 +1,119 @@
+# This capfile is intended to be used with Redcap 
+# (the little-known half-twin of Capistrano that was born out 
+# of a relationship Capistrano's mother had with a redant)
+# and may not work with plain-milk Capistrano.
+#
+# cli_roles is set by redcap and populated with args that appear on the cli after the action
+# This lets us do things like: 
+#   $ redcap rrdlogtail crawls203 crawls204
+# which will output the tail of the rakerunnerd.log on crawls203 and crawls204
+# or we can do this:
+#   $ redcap stoprake crawl:twitter_id crawl:myspace
+# which stops the rake tasks crawl:twitter_id and crawl:myspace on any server that is configured
+# to run those processes.
+#
+# cli_rakes is set by redcap and populated with args that appear on the cli after the action
+# In many cases it is identical to cli_roles except when one of the args is also a host. 
+# In that case cli_roles contains only args that are hosts, and cli_rakes contains only args 
+# that are not hosts.
+# This lets us do things like: 
+#   $ redcap stoptask crawl:myspace crawls202 crawls203
+# which stops the myspace crawler but only on crawls203 and crawls204
+#
+# Because of the way the parser works postion doesn't matter so this:
+#   $ redcap stoptask crawls202 crawl:myspace crawls203
+# has the same effect as the last command.
+#
+def gbcmd(cmd) #execute command from root dir of Global Based project
+  run "if [ -e /var/www/apps/redant ]; then cd /var/www/apps/redant; else cd /var/www/apps/hugo; fi && #{cmd}"
+end
+
+
+namespace :gb do
+  desc "deploy_release"
+  task :deploy_release, :roles => cli_roles do
+    begin
+      client && host && rel && file
+    rescue
+      puts "usage: rrcap gb:dep_loy -s client=<client> -s host=<hugo-box> -s file=</var/www/apps/path> -s rel=x.x.x"
+    end
+
+    env = "production"
+    run "rm -Rf /var/www/apps/zephyr"
+    #run "svn co http://svn.miningbased.com/svn/mb/releases/#{rel}/zephyr /var/www/apps/zephyr"
+    run "svn co http://svn.miningbased.com/svn/mb/trunk/zephyr /var/www/apps/zephyr"
+    run "/var/www/apps/zephyr/script/installerbased/installerbased.sh zephyr --force --install_required_debs --install_required_gems --install_and_setup_nfs"
+    run "cp /var/www/apps/zephyr/config/database.zephyr /var/www/apps/zephyr/config/database.yml"
+    run "cd /var/www/apps/zephyr; rake db:drop RAILS_ENV=test; rake db:create RAILS_ENV=test; rake db:migrate RAILS_ENV=test"
+    run "cd /var/www/apps/zephyr; rake db:drop RAILS_ENV=zephyr; rake db:create RAILS_ENV=#{env}; rake db:migrate RAILS_ENV=#{env}"
+    #  run "cd /var/www/apps/zephyr; rake test"
+    `scp #{file} root@#{host}:/tmp/temp_clients_file.csv`
+    run "cd /var/www/apps/zephyr; rake pre_process client=#{client} file=/tmp/temp_clients_file.csv desc=obsolete RAILS_ENV=#{env}"
+    run "cd /var/www/apps/zephyr; rake system_status RAILS_ENV=#{env}"
+    run "cd /var/www/apps/zephyr; rake start_consumers RAILS_ENV=#{env}"
+  end
+
+  desc "send_page_requests"
+  task :send_page_requests, :roles => cli_roles do
+    env = "production"
+    run "cd /var/www/apps/zephyr; rake start_consumers RAILS_ENV=#{env}"
+  end
+
+  desc "svn up"
+  task :svnup, :roles => cli_roles do
+    gbcmd "svn up"
+  end
+
+  desc "use-db-prod"
+  task "use-db-prod", :roles => cli_roles do
+    gbcmd "if [[ -e config/database.prod ]]; then cp config/database.prod config/database.yml; else echo 'config/database.prod does not exist'; fi"
+  end
+
+desc "use-db-stage"
+  task "use-db-stage", :roles => cli_roles do
+    gbcmd "if [[ -e config/database.stage ]]; then cp config/database.stage config/database.yml; else echo 'config/database.stage does not exist'; fi"
+  end
+
+desc "use-db-test"
+  task "use-db-test", :roles => cli_roles do
+    gbcmd "if [[ -e config/database.test ]]; then cp config/database.test config/database.yml; else echo 'config/database.test does not exist'; fi"
+  end
+end
+
+namespace :redant do
+  desc "update"
+  task :update, :roles => cli_roles do
+    set :user, 'root'
+    run "rakerunner stop"
+    run "svn up /var/www/apps/redant/rakerunner"
+    run "cd /var/www/apps/redant; bash script/installerbased/installerbased.sh redant --install_required_gems --force"
+    run "rakerunner start"
+  end
+
+  desc "switch_co"
+  task :switch_co, :roles => cli_roles do
+    set :user, 'root'
+    run "rm -Rf /var/www/apps/redant"
+    run "cd /var/www/apps/redant; svn switch http://svn.miningbased.com/svn/mb/trunk/redant"
+  end
+end
+
+namespace :rrd do
+  desc "reset"
+  task :reset, :roles => cli_roles do
+    gbcmd "rm rakerunner/rakerunner.pid"
+  end
+end
+
+namespace :kill9 do
+  desc "rakes"
+  task :rakes, :roles => cli_roles do
+    run "killall -9 rake"
+  end
+
+  desc "ruby"
+  task :ruby, :roles => cli_roles do
+    run "killall -9 ruby"
+  end
+end
+

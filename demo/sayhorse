@@ -1,0 +1,5 @@
+#!/bin/bash
+while true; do
+  echo "Bash script $$ says 'horse'"
+  sleep 10
+done

@@ -1,0 +1,22 @@
+*:
+  conf_reload_wait: 2 #remove this lines to get default
+  pid_check_wait: 5 #remove this lines to get default
+  daemon_dir: ./
+  debug: true
+  task_logging: false #if true each task will automatically be logged
+  task_log_dir: ./logs #where logs go only if taks_logging is true
+  tasks:
+    - task: rake saycat
+      qty: 3
+    - task: "rake saydog"
+      qty: 1
+      log: ./logs/saydog.log
+    - task: saypig.rb
+      qty: 3
+      log: ./logs/sayhorse.log
+somehostname:
+  daemon_root: /var/www/apps/redant/rakerunner
+  env_vars: 
+    RAILS_ENV: production
+    RAILS_ROOT: /var/www/apps/redant
+
